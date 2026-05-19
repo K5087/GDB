@@ -251,8 +251,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: GDB ${{ env.GDB_VERSION }} for Windows x64 llvm-mingw
-      	  draft: false
-      	  prerelease: false
-      	  generate_release_notes: true
-      	  files: |
-      	    gdb-${{ env.GDB_VERSION }}-windows-x64-llvm-mingw.tar.xz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            gdb-${{ env.GDB_VERSION }}-windows-x64-llvm-mingw.tar.xz
