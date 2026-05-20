@@ -33,7 +33,10 @@ runs:
         let prefix_win = ($env.GITHUB_WORKSPACE | path join "deps" "gmp")
         let prefix = (cygpath -u $prefix_win | str trim)
 
-        cd $"gmp-($env.GMP_VERSION)"
+        let src_win = ($env.GITHUB_WORKSPACE | path join $"gmp-($env.GMP_VERSION)")
+        let src = (cygpath -u $src_win | str trim)
+
+        let jobs = (sys cpu | length)
 
         with-env {
           CC: "x86_64-w64-mingw32-clang"
@@ -42,13 +45,5 @@ runs:
           RANLIB: "x86_64-w64-mingw32-ranlib"
           STRIP: "x86_64-w64-mingw32-strip"
         } {
-          sh ./configure ...[
-            --host=x86_64-w64-mingw32
-            $"--prefix=($prefix)"
-            --disable-shared
-            --enable-static
-          ]
-
-          make -j (sys cpu | length)
-          make install
+          sh -lc $"cd '($src)' && ./configure --build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32 --prefix='($prefix)' --disable-shared --enable-static && make -j($jobs) && make install"
         }
