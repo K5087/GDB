@@ -420,6 +420,7 @@ jobs:
               --disable-shared
               --enable-static
               --without-threads
+              --disable-largefile
             ]
 
             make -j (sys cpu | length)
