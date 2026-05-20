@@ -30,7 +30,7 @@ runs:
       if: steps.cache-build-gmp.outputs.cache-hit != 'true'
       shell: nu {0}
       run: |
-        let prefix = ($env.GITHUB_WORKSPACE | path join "deps" "gmp")
+        let prefix_win = ($env.GITHUB_WORKSPACE | path join "deps" "gmp")
         let prefix = (cygpath -u $prefix_win | str trim)
 
         cd $"gmp-($env.GMP_VERSION)"
