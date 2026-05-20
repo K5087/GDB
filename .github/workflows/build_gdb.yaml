@@ -292,7 +292,6 @@ jobs:
 
             make -C lib -j (sys cpu | length)
             make -C lib install
-            make -C headers install
           }
 
       - name: Build bdwgc
