@@ -26,6 +26,14 @@ jobs:
       LLVM_MINGW_VERSION: "20260505"
       PREFIX: "${{ github.workspace }}/gdb-install"
       DEPS_PREFIX: "${{ github.workspace }}/deps-install"
+      PYTHON_VERSION: "3.14.5"
+      LIBFFI_VERSION: "3.4.6"
+      LIBUNISTRING_VERSION: "1.2"
+      BDWGC_VERSION: "8.2.8"
+      LIBICONV_VERSION: "1.17"
+      GETTEXT_VERSION: "0.22.5"
+      GUILE_VERSION: "3.0.10"
+      PYTHON_ABI_VERSION: "3.14"
 
     steps:
       - name: Checkout
@@ -36,50 +44,97 @@ jobs:
         with:
           version: "*"
 
+      - name: Cache llvm-mingw
+        id: cache-llvm-mingw
+        uses: actions/cache@v4
+        with:
+          path: llvm-mingw
+          key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
+
+      - name: Cache source tarballs
+        id: cache-sources
+        uses: actions/cache@v4
+        with:
+          path: sources
+          key: sources-${{ runner.os }}-${{ env.GDB_VERSION }}-${{ env.GMP_VERSION }}-${{ env.MPFR_VERSION }}-${{ env.ZLIB_VERSION }}-${{ env.XZ_VERSION }}-${{ env.EXPAT_VERSION }}-${{ env.LIBFFI_VERSION }}-${{ env.LIBUNISTRING_VERSION }}-${{ env.BDWGC_VERSION }}-${{ env.LIBICONV_VERSION }}-${{ env.GETTEXT_VERSION }}-${{ env.PYTHON_VERSION }}-${{ env.GUILE_VERSION }}
+
+      - name: Cache deps-install
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: deps-install
+          key: deps-${{ runner.os }}-llvm-${{ env.LLVM_MINGW_VERSION }}-gmp-${{ env.GMP_VERSION }}-mpfr-${{ env.MPFR_VERSION }}-zlib-${{ env.ZLIB_VERSION }}-xz-${{ env.XZ_VERSION }}-expat-${{ env.EXPAT_VERSION }}-python-${{ env.PYTHON_VERSION }}-guile-${{ env.GUILE_VERSION }}
+
+      - name: Cache host Python
+        id: cache-host-python
+        uses: actions/cache@v4
+        with:
+          path: host-python
+          key: host-python-${{ runner.os }}-${{ env.PYTHON_VERSION }}
+
       - name: Install host build tools
-        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            texinfo \
-            bison \
-            flex \
-            gettext \
-            wget \
-            curl \
-            xz-utils \
-            unzip \
-            ca-certificates \
-            make \
+          sudo apt-get install -y ...[
+            build-essential
+            texinfo
+            bison
+            flex
+            gettext
             pkg-config
+            guile-3.0-dev
+          ]
 
       - name: Download llvm-mingw
+        if: steps.cache-llvm-mingw.outputs.cache-hit != 'true'
         run: |
           let url = $"https://github.com/mstorsjo/llvm-mingw/releases/download/($env.LLVM_MINGW_VERSION)/llvm-mingw-($env.LLVM_MINGW_VERSION)-ucrt-ubuntu-22.04-x86_64.tar.xz"
-          wget -O llvm-mingw.tar.xz $url
+          curl -L -o llvm-mingw.tar.xz $url
           tar -xf llvm-mingw.tar.xz
           mv $"llvm-mingw-($env.LLVM_MINGW_VERSION)-ucrt-ubuntu-22.04-x86_64" llvm-mingw
 
+      - name: Add llvm-mingw to PATH
+        run: |
           $"($env.GITHUB_WORKSPACE)/llvm-mingw/bin" | save --append $env.GITHUB_PATH
 
       - name: Download sources
+        if: steps.cache-sources.outputs.cache-hit != 'true'
         run: |
-          wget -O zlib.tar.gz https://zlib.net/zlib-($env.ZLIB_VERSION).tar.gz
-          wget -O xz.tar.xz https://github.com/tukaani-project/xz/releases/download/v($env.XZ_VERSION)/xz-($env.XZ_VERSION).tar.xz
-          wget -O expat.tar.xz https://github.com/libexpat/libexpat/releases/download/R_2_7_1/expat-($env.EXPAT_VERSION).tar.xz
-          wget -O gdb.tar.xz $"https://ftp.gnu.org/gnu/gdb/gdb-($env.GDB_VERSION).tar.xz"
-          wget -O gmp.tar.xz $"https://ftp.gnu.org/gnu/gmp/gmp-($env.GMP_VERSION).tar.xz"
-          wget -O mpfr.tar.xz $"https://ftp.gnu.org/gnu/mpfr/mpfr-($env.MPFR_VERSION).tar.xz"
+          mkdir -p sources
+          curl -L -o sources/zlib.tar.gz https://zlib.net/zlib-($env.ZLIB_VERSION).tar.gz
+          curl -L -o sources/xz.tar.xz https://github.com/tukaani-project/xz/releases/download/v($env.XZ_VERSION)/xz-($env.XZ_VERSION).tar.xz
+          let expat_tag = ($env.EXPAT_VERSION | str replace --all "." "_")
+          curl -L -o sources/expat.tar.xz $"https://github.com/libexpat/libexpat/releases/download/R_($expat_tag)/expat-($env.EXPAT_VERSION).tar.xz"
+          curl -L -o sources/gdb.tar.xz $"https://ftp.gnu.org/gnu/gdb/gdb-($env.GDB_VERSION).tar.xz"
+          curl -L -o sources/gmp.tar.xz $"https://ftp.gnu.org/gnu/gmp/gmp-($env.GMP_VERSION).tar.xz"
+          curl -L -o sources/mpfr.tar.xz $"https://ftp.gnu.org/gnu/mpfr/mpfr-($env.MPFR_VERSION).tar.xz"
+          curl -L -o sources/libffi.tar.gz $"https://github.com/libffi/libffi/releases/download/v($env.LIBFFI_VERSION)/libffi-($env.LIBFFI_VERSION).tar.gz"
+          curl -L -o sources/libunistring.tar.xz $"https://ftp.gnu.org/gnu/libunistring/libunistring-($env.LIBUNISTRING_VERSION).tar.xz"
+          curl -L -o sources/bdwgc.tar.gz $"https://github.com/ivmai/bdwgc/releases/download/v($env.BDWGC_VERSION)/gc-($env.BDWGC_VERSION).tar.gz"
+          curl -L -o sources/libiconv.tar.gz $"https://ftp.gnu.org/pub/gnu/libiconv/libiconv-($env.LIBICONV_VERSION).tar.gz"
+          curl -L -o sources/gettext.tar.xz $"https://ftp.gnu.org/pub/gnu/gettext/gettext-($env.GETTEXT_VERSION).tar.xz"
+          curl -L -o sources/guile.tar.xz $"https://ftp.gnu.org/gnu/guile/guile-($env.GUILE_VERSION).tar.xz"
+          curl -L -o sources/python.tar.xz $"https://www.python.org/ftp/python/($env.PYTHON_VERSION)/Python-($env.PYTHON_VERSION).tar.xz"
 
-          tar -xf gmp.tar.xz
-          tar -xf mpfr.tar.xz
-          tar -xf zlib.tar.gz
-          tar -xf xz.tar.xz
-          tar -xf expat.tar.xz
-          tar -xf gdb.tar.xz
+      - name: Extract sources
+        run: |
+          tar -xf sources/gmp.tar.xz
+          tar -xf sources/mpfr.tar.xz
+          tar -xf sources/zlib.tar.gz
+          tar -xf sources/xz.tar.xz
+          tar -xf sources/expat.tar.xz
+          tar -xf sources/gdb.tar.xz
+
+          tar -xf sources/libffi.tar.gz
+          tar -xf sources/libunistring.tar.xz
+          tar -xf sources/bdwgc.tar.gz
+          tar -xf sources/libiconv.tar.gz
+          tar -xf sources/gettext.tar.xz
+          tar -xf sources/guile.tar.xz
+          tar -xf sources/python.tar.xz
 
       - name: Build zlib
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd zlib-($env.ZLIB_VERSION)
 
@@ -94,6 +149,7 @@ jobs:
           }
 
       - name: Build xz liblzma
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd xz-($env.XZ_VERSION)
 
@@ -122,6 +178,7 @@ jobs:
           }
 
       - name: Build expat
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd expat-($env.EXPAT_VERSION)
 
@@ -144,6 +201,7 @@ jobs:
           }
 
       - name: Build GMP
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd $"gmp-($env.GMP_VERSION)"
 
@@ -166,6 +224,7 @@ jobs:
           }
 
       - name: Build MPFR
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd $"mpfr-($env.MPFR_VERSION)"
 
@@ -190,9 +249,199 @@ jobs:
             make install
           }
 
+      - name: Build libffi
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"libffi-($env.LIBFFI_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            CXX: "x86_64-w64-mingw32-clang++"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build libunistring
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"libunistring-($env.LIBUNISTRING_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build bdwgc
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"gc-($env.BDWGC_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            CXX: "x86_64-w64-mingw32-clang++"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+            CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
+            LDFLAGS: $"-L($env.DEPS_PREFIX)/lib"
+            PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build libiconv
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"libiconv-($env.LIBICONV_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build gettext libintl
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"gettext-($env.GETTEXT_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            CXX: "x86_64-w64-mingw32-clang++"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+            CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
+            LDFLAGS: $"-L($env.DEPS_PREFIX)/lib"
+            PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+              --disable-java
+              --disable-native-java
+              --disable-csharp
+              --without-emacs
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build Guile
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"guile-($env.GUILE_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            CXX: "x86_64-w64-mingw32-clang++"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+            CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
+            LDFLAGS: $"-L($env.DEPS_PREFIX)/lib"
+            PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              $"--prefix=($env.DEPS_PREFIX)"
+              --disable-shared
+              --enable-static
+              --without-threads
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
+      - name: Build host Python
+        if: steps.cache-host-python.outputs.cache-hit != 'true'
+        run: |
+          cp -r $"Python-($env.PYTHON_VERSION)" $"Python-($env.PYTHON_VERSION)-host"
+          cd $"Python-($env.PYTHON_VERSION)-host"
+
+          ./configure $"--prefix=($env.GITHUB_WORKSPACE)/host-python"
+          make -j (sys cpu | length)
+          make install
+
+      - name: Build target Python
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd $"Python-($env.PYTHON_VERSION)"
+
+          with-env {
+            CC: "x86_64-w64-mingw32-clang"
+            CXX: "x86_64-w64-mingw32-clang++"
+            AR: "x86_64-w64-mingw32-ar"
+            RANLIB: "x86_64-w64-mingw32-ranlib"
+            STRIP: "x86_64-w64-mingw32-strip"
+            CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
+            LDFLAGS: $"-L($env.DEPS_PREFIX)/lib"
+            PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
+            ac_cv_file__dev_ptmx: "no"
+            ac_cv_file__dev_ptc: "no"
+          } {
+            ./configure ...[
+              --host=x86_64-w64-mingw32
+              --build=x86_64-pc-linux-gnu
+              $"--prefix=($env.DEPS_PREFIX)"
+              $"--with-build-python=($env.GITHUB_WORKSPACE)/host-python/bin/python3"
+              --without-ensurepip
+              --disable-test-modules
+            ]
+
+            make -j (sys cpu | length)
+            make install
+          }
+
       - name: Configure GDB
         run: |
-          mkdir build-gdb
+          mkdir -p build-gdb
           cd build-gdb
 
           with-env {
@@ -204,6 +453,7 @@ jobs:
             PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
             CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
             LDFLAGS: $"-L($env.DEPS_PREFIX)/lib -static"
+            LIBS: $"-lpython($env.PYTHON_ABI_VERSION) -lguile-3.0 -lgc -lffi -lunistring -lintl -liconv -lws2_32 -lshlwapi -lversion -lbcrypt"
           } {
             ../gdb-($env.GDB_VERSION)/configure ...[
               $"--prefix=($env.PREFIX)"
@@ -211,8 +461,8 @@ jobs:
               --target=x86_64-w64-mingw32
               $"--with-gmp=($env.DEPS_PREFIX)"
               $"--with-mpfr=($env.DEPS_PREFIX)"
-              --without-python
-              --without-guile
+              $"--with-python=($env.DEPS_PREFIX)/bin/python3.exe"
+              $"--with-guile=($env.DEPS_PREFIX)/bin/guile.exe"
               --with-expat
               --with-lzma
               --with-zlib
@@ -235,6 +485,17 @@ jobs:
           cd build-gdb
           make -j (sys cpu | length)
           make install
+
+      - name: Copy Python and Guile runtime
+        run: |
+          mkdir -p $"($env.PREFIX)/bin"
+          mkdir -p $"($env.PREFIX)/lib"
+          mkdir -p $"($env.PREFIX)/share"
+
+          cp -r $"($env.DEPS_PREFIX)/lib/python($env.PYTHON_ABI_VERSION)" $"($env.PREFIX)/lib/" | ignore
+          cp -r $"($env.DEPS_PREFIX)/lib/guile" $"($env.PREFIX)/lib/" | ignore
+          cp -r $"($env.DEPS_PREFIX)/share/guile" $"($env.PREFIX)/share/" | ignore
+          cp $"($env.DEPS_PREFIX)/bin/"*.dll $"($env.PREFIX)/bin/" | ignore
 
       - name: Package
         run: |
