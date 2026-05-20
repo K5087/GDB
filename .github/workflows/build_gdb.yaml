@@ -413,6 +413,10 @@ jobs:
             CPPFLAGS: $"-I($env.DEPS_PREFIX)/include"
             LDFLAGS: $"-L($env.DEPS_PREFIX)/lib"
             PKG_CONFIG_LIBDIR: $"($env.DEPS_PREFIX)/lib/pkgconfig"
+            ac_cv_func_lstat64: "no"
+            ac_cv_func_readdir64: "no"
+            ac_cv_func_stat64: "no"
+            ac_cv_func_fstat64: "no"
           } {
             ./configure ...[
               --host=x86_64-w64-mingw32
