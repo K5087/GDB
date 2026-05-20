@@ -1,0 +1,26 @@
+name: llvm-mingw
+description: download and extract llvm-mingw
+
+runs:
+  using: composite
+  steps:
+    - name: Cache llvm-mingw
+      id: cache-llvm-mingw
+      uses: actions/cache@v4
+      with:
+        path: llvm-mingw
+        key: llvm-mingw-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}
+
+    - name: Download llvm-mingw
+      if: steps.cache-llvm-mingw.outputs.cache-hit != 'true'
+      shell: nu {0}
+      run: |
+        let url = $"https://github.com/mstorsjo/llvm-mingw/releases/download/($env.LLVM_MINGW_VERSION)/llvm-mingw-($env.LLVM_MINGW_VERSION)-ucrt-x86_64.zip"
+        curl -L -o llvm-mingw.zip $url
+        7z x llvm-mingw.zip
+        mv $"llvm-mingw-($env.LLVM_MINGW_VERSION)-ucrt-x86_64" llvm-mingw
+
+    - name: Add llvm-mingw to PATH
+      shell: nu {0}
+      run: |
+        $"($env.GITHUB_WORKSPACE)/llvm-mingw/bin" | save --append $env.GITHUB_PATH

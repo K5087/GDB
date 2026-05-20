@@ -1,0 +1,49 @@
+name: Build GDB
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-gdb:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: nu {0}
+
+    env:
+      GDB_VERSION: "17.2"
+      GMP_VERSION: "6.3.0"
+      MPFR_VERSION: "4.2.1"
+      ZLIB_VERSION: "1.3.2"
+      XZ_VERSION: "5.8.1"
+      EXPAT_VERSION: "2.7.1"
+      LLVM_MINGW_VERSION: "20260519"
+      PREFIX: "${{ github.workspace }}/gdb-install"
+      DEPS_PREFIX: "${{ github.workspace }}/deps-install"
+      PYTHON_VERSION: "3.14.5"
+      LIBFFI_VERSION: "3.4.6"
+      LIBUNISTRING_VERSION: "1.2"
+      BDWGC_VERSION: "8.2.8"
+      LIBICONV_VERSION: "1.17"
+      GETTEXT_VERSION: "0.22.5"
+      GUILE_VERSION: "3.0.11"
+      PYTHON_ABI_VERSION: "3.14"
+      LIBATOMIC_OPS_VERSION: "7.8.2"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          version: "*"
+
+      - name: Setup llvm-mingw
+        uses: ./.github/actions/llvm-mingw
