@@ -395,8 +395,8 @@ jobs:
               --without-emacs
             ]
 
-            make -j (sys cpu | length)
-            make install
+            make -C gettext-runtime/intl -j (sys cpu | length)
+            make -C gettext-runtime/intl install
           }
 
       - name: Build Guile
