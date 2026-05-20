@@ -47,3 +47,6 @@ jobs:
 
       - name: Setup llvm-mingw
         uses: ./.github/actions/llvm-mingw
+
+      - name: Setup gmp
+        uses: ./.github/actions/gmp

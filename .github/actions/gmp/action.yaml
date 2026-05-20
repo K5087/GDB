@@ -1,0 +1,53 @@
+name: gmp
+description: download and build gmp
+
+runs:
+  using: composite
+  steps:
+    - name: Cache download gmp
+      id: cache-download-gmp
+      uses: actions/cache@v4
+      with:
+        path: gmp-${{ env.GMP_VERSION }}
+        key: gmp-source-${{ runner.os }}-${{ env.GMP_VERSION }}
+
+    - name: Cache build gmp
+      id: cache-build-gmp
+      uses: actions/cache@v4
+      with:
+        path: deps/gmp
+        key: gmp-build-${{ runner.os }}-${{ env.LLVM_MINGW_VERSION }}-${{ env.GMP_VERSION }}
+
+    - name: Download gmp
+      if: steps.cache-build-gmp.outputs.cache-hit != 'true' && steps.cache-download-gmp.outputs.cache-hit != 'true'
+      shell: nu {0}
+      run: |
+        curl -L -o gmp.tar.xz $"https://ftp.gnu.org/gnu/gmp/gmp-($env.GMP_VERSION).tar.xz"
+        7z x gmp.tar.xz
+        7z x gmp.tar
+
+    - name: Build gmp
+      if: steps.cache-build-gmp.outputs.cache-hit != 'true'
+      shell: nu {0}
+      run: |
+        let prefix = ($env.GITHUB_WORKSPACE | path join "deps" "gmp")
+
+        cd $"gmp-($env.GMP_VERSION)"
+
+        with-env {
+          CC: "x86_64-w64-mingw32-clang"
+          CXX: "x86_64-w64-mingw32-clang++"
+          AR: "x86_64-w64-mingw32-ar"
+          RANLIB: "x86_64-w64-mingw32-ranlib"
+          STRIP: "x86_64-w64-mingw32-strip"
+        } {
+          ./configure ...[
+            --host=x86_64-w64-mingw32
+            $"--prefix=($prefix)"
+            --disable-shared
+            --enable-static
+          ]
+
+          make -j (sys cpu | length)
+          make install
+        }
